@@ -1,0 +1,5 @@
+.Ds_Store
+_dev.py
+build
+SQLOG.egg-info
+__pycache__
