@@ -5,7 +5,7 @@ from rich import print
 from pathlib import Path
 
 
-class SQLOG:
+class MetricDB:
     def __init__(self, base_dir: Path, name_datafile: str = "default.db", verbose: bool = True):
 
         # fmt: off
@@ -205,7 +205,7 @@ class SQLOG:
 
 
 if __name__ == "__main__":
-    logger = SQLOG(base_dir="data", name_datafile="default.db")
+    logger = MetricDB(base_dir="data", name_datafile="default.db")
     # logger._write_dummy_data()
 
     logger.log({"epoch": 1}, name_table="train")
