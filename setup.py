@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="MetricDB",
-    version="0.0.4",
+    version="0.0.5",
     author="Don Yin",
     author_email="Don_Yin@outlook.com",
     description="A logger based on SQLite3",

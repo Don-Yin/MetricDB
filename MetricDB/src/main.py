@@ -29,9 +29,9 @@ class MetricDB:
         cursor = self.connect.cursor()
 
         query = f"""
-        SELECT {key}
+        SELECT "{key}"
         FROM {name_table}
-        WHERE {key} IS NOT NULL
+        WHERE "{key}" IS NOT NULL
         ORDER BY id DESC
         LIMIT {window_size}
         """
@@ -52,7 +52,7 @@ class MetricDB:
         cursor = self.connect.cursor()
 
         # ---- [1] create table if not exists ----
-        columns = ", ".join([f"{key} TEXT" for key in data.keys()])
+        columns = ", ".join([f'"{key}" TEXT' for key in data.keys()])
         cursor.execute(
             f"""
         CREATE TABLE IF NOT EXISTS {name_table} (
@@ -68,9 +68,9 @@ class MetricDB:
 
         for key in data.keys():
             if key not in existing_columns:
-                cursor.execute(f"ALTER TABLE {name_table} ADD COLUMN {key} TEXT")
+                cursor.execute(f'ALTER TABLE {name_table} ADD COLUMN "{key}" TEXT')
 
-        columns = ", ".join(data.keys())
+        columns = ", ".join([f'"{key}"' for key in data.keys()])
         placeholders = ", ".join(["?" for _ in data])
         values = tuple(data.values())
 
@@ -211,11 +211,11 @@ if __name__ == "__main__":
 
     logger.log({"epoch": 1})
     for i in range(1000):
-        logger.log({"train_loss": i})
-        logger.log({"train_accuracy": i / 1000})
-        logger.log({"val_loss": i}, name_table="val")
-        loss = logger.get_moving_average(key="train_loss")
-        print(f"Moving Average of train_loss: {loss}")
+        logger.log({"train loss": i})
+        logger.log({"train accuracy": i / 1000})
+        logger.log({"val loss": i}, name_table="val")
+        loss = logger.get_moving_average(key="train loss")
+        print(f"Moving Average of train loss: {loss}")
 
     # logger.print_header()
     # logger.save_as_pandas_dataframe(name_table="train", save_dir="train.csv")
