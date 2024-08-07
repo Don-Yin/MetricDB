@@ -24,7 +24,7 @@ class MetricDB:
             self.print_header()
 
     # ---- [ core functional helpers ] ----
-    def get_moving_average(self, key: str, name_table: str = "default", window_size: int = 12):
+    def get_moving_average(self, key: str, name_table: str = "main", window_size: int = 12):
         """get the moving average of the key from the table of the past window_size values that are not None"""
         cursor = self.connect.cursor()
 
@@ -48,7 +48,7 @@ class MetricDB:
 
         return None
 
-    def log(self, data: dict, name_table: str = "default"):
+    def log(self, data: dict, name_table: str = "main"):
         cursor = self.connect.cursor()
 
         # ---- [1] create table if not exists ----
@@ -96,17 +96,18 @@ class MetricDB:
             print(f"[bold green]SQLite3[/bold green] connection closed for: {self.datafile_dir}")
 
     # --- [ other useful helpers ] ---
-    def save_as_pandas_dataframe(self, name_table: str = "default", save_dir: Path = "default.csv"):
+    def save_as_pandas_dataframe(self, name_table: str = "main", save_dir: Path = "default.csv"):
         """
         Save the specified table as a pandas DataFrame and export it to a CSV file.
 
         Args:
-            name_table (str): The name of the table to save. Defaults to "default".
-            save_dir (Path): The path where the CSV file will be saved. Defaults to "default.csv".
+            name_table (str): The name of the table to save. Defaults to "main".
+            save_dir (Path): The path where the CSV file will be saved. Defaults to "main.csv".
         """
 
         cursor = self.connect.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name_table,))
+
         if not cursor.fetchone():
             raise ValueError(f"Table '{name_table}' does not exist in the database.")
 
@@ -145,12 +146,12 @@ class MetricDB:
             print("  No tables found in the database.")
         cursor.close()
 
-    def show_last_row(self, name_table: str = "default"):
+    def show_last_row(self, name_table: str = "main"):
         """
         Show the last row of the specified table as a dictionary.
 
         Args:
-            name_table (str): The name of the table to show the last row from. Defaults to "default".
+            name_table (str): The name of the table to show the last row from. Defaults to "main".
         """
         cursor = self.connect.cursor()
 
@@ -208,16 +209,16 @@ if __name__ == "__main__":
     logger = MetricDB(base_dir="data", name_datafile="default.db")
     # logger._write_dummy_data()
 
-    logger.log({"epoch": 1}, name_table="train")
+    logger.log({"epoch": 1})
     for i in range(1000):
-        logger.log({"train_loss": i}, name_table="train")
-        logger.log({"train_accuracy": i / 1000}, name_table="train")
+        logger.log({"train_loss": i})
+        logger.log({"train_accuracy": i / 1000})
         logger.log({"val_loss": i}, name_table="val")
-        loss = logger.get_moving_average(key="train_loss", name_table="train", window_size=12)
+        loss = logger.get_moving_average(key="train_loss")
         print(f"Moving Average of train_loss: {loss}")
 
     # logger.print_header()
     # logger.save_as_pandas_dataframe(name_table="train", save_dir="train.csv")
-    logger.show_last_row(name_table="train")
+    logger.show_last_row()
 
     logger.on_end()
