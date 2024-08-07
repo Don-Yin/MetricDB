@@ -28,6 +28,16 @@ class MetricDB:
         """get the moving average of the key from the table of the past window_size values that are not None"""
         cursor = self.connect.cursor()
 
+        # ---- check if the key exists in the table ----
+        cursor.execute(f"PRAGMA table_info({name_table})")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if key not in columns:
+            if self.verbose:
+                print(f"[bold yellow]Warning: Key '{key}' does not exist in table '{name_table}'. Returning 0.[/bold yellow]")
+            return 0
+
+        # ---- continue ----
         query = f"""
         SELECT "{key}"
         FROM {name_table}
@@ -42,11 +52,16 @@ class MetricDB:
 
         if results:
             values = [float(result[0]) for result in results if result[0] is not None]
+
             if values:
                 moving_average = sum(values) / len(values)
                 return moving_average
 
-        return None
+        if self.verbose:
+            print(
+                f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]"
+            )
+        return 0
 
     def log(self, data: dict, name_table: str = "main"):
         cursor = self.connect.cursor()
@@ -206,19 +221,23 @@ class MetricDB:
 
 
 if __name__ == "__main__":
-    logger = MetricDB(base_dir="data", name_datafile="default.db")
-    # logger._write_dummy_data()
+    # logger = MetricDB(base_dir="data", name_datafile="default.db")
+    # # logger._write_dummy_data()
 
-    logger.log({"epoch": 1})
-    for i in range(1000):
-        logger.log({"train loss": i})
-        logger.log({"train accuracy": i / 1000})
-        logger.log({"val loss": i}, name_table="val")
-        loss = logger.get_moving_average(key="train loss")
-        print(f"Moving Average of train loss: {loss}")
+    # logger.log({"epoch": 1})
+    # for i in range(1000):
+    #     logger.log({"train loss": i})
+    #     logger.log({"train accuracy": i / 1000})
+    #     logger.log({"val loss": i}, name_table="val")
+    #     loss = logger.get_moving_average(key="train loss")
+    #     print(f"Moving Average of train loss: {loss}")
 
-    # logger.print_header()
-    # logger.save_as_pandas_dataframe(name_table="train", save_dir="train.csv")
-    logger.show_last_row()
+    # # logger.print_header()
+    # # logger.save_as_pandas_dataframe(name_table="train", save_dir="train.csv")
+    # logger.show_last_row()
 
-    logger.on_end()
+    # logger.on_end()
+
+    logger = MetricDB(base_dir=".", name_datafile="default.db")
+    logger.print_header()
+    logger.get_moving_average(key="Valid Accuracy Balanced")
