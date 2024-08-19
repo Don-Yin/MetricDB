@@ -138,6 +138,35 @@ class MetricDB:
         if self.verbose:
             print(f"[bold green]SQLite3[/bold green] Saved table '{name_table}' to {save_dir}")
 
+    def get_pandas_dataframe(self, name_table: str = "main"):
+        """
+        Get the specified table as a pandas DataFrame.
+
+        Args:
+            name_table (str): The name of the table to get. Defaults to "main".
+
+        Returns:
+            pandas.DataFrame: The table data as a pandas DataFrame.
+        """
+        cursor = self.connect.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name_table,))
+
+        if not cursor.fetchone():
+            raise ValueError(f"Table '{name_table}' does not exist in the database.")
+
+        cursor.execute(f"SELECT * FROM {name_table}")
+        rows = cursor.fetchall()
+
+        cursor.execute(f"PRAGMA table_info({name_table})")
+        columns = [col[1] for col in cursor.fetchall()]
+        df = pandas.DataFrame(rows, columns=columns)
+        cursor.close()
+
+        if self.verbose:
+            print(f"[bold green]SQLite3[/bold green] Retrieved table '{name_table}' as pandas DataFrame")
+
+        return df
+
     # ---- for debugging ----
     def print_header(self):
         """of all existing tables in the database"""
