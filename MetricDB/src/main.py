@@ -6,11 +6,10 @@ from pathlib import Path
 
 
 class MetricDB:
-    def __init__(self, base_dir: Path, name_datafile: str = "default.db", verbose: bool = True):
+    def __init__(self, datafile_dir: str = "default.db", verbose: bool = True):
 
         # fmt: off
-        self.base_dir, self.verbose = Path(base_dir).mkdir(parents=True, exist_ok=True) or Path(base_dir), verbose
-        self.datafile_dir = self.base_dir / name_datafile
+        self.verbose, self.datafile_dir = verbose, Path(datafile_dir)
         # fmt: on
 
         self.connect = sqlite3.connect(self.datafile_dir)
