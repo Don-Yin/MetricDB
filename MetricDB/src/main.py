@@ -7,11 +7,7 @@ from pathlib import Path
 
 class MetricDB:
     def __init__(self, datafile_dir: str = "default.db", verbose: bool = True):
-
-        # fmt: off
         self.verbose, self.datafile_dir = verbose, Path(datafile_dir)
-        # fmt: on
-
         self.connect = sqlite3.connect(self.datafile_dir)
 
         # ---- [1] reporting init progress ----
@@ -57,9 +53,7 @@ class MetricDB:
                 return moving_average
 
         if self.verbose:
-            print(
-                f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]"
-            )
+            print(f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]")
         return 0
 
     def log(self, data: dict, name_table: str = "main"):
@@ -105,7 +99,6 @@ class MetricDB:
 
     def on_end(self):
         self.connect.close()
-
         if self.verbose:
             print(f"[bold green]SQLite3[/bold green] connection closed for: {self.datafile_dir}")
 
@@ -137,21 +130,21 @@ class MetricDB:
         if self.verbose:
             print(f"[bold green]SQLite3[/bold green] Saved table '{name_table}' to {save_dir}")
 
-    def get_pandas_dataframe(self, name_table: str = "main"):
+    def get_dataframe(self, name_table: str = "main"):
         """
-        Get the specified table as a pandas DataFrame.
-
+        Get the specified table as a pandas DataFrame with automatic type conversion.
         Args:
             name_table (str): The name of the table to get. Defaults to "main".
 
         Returns:
-            pandas.DataFrame: The table data as a pandas DataFrame.
+            pandas.DataFrame: The table data as a pandas DataFrame with proper data types.
         """
         cursor = self.connect.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name_table,))
 
         if not cursor.fetchone():
-            raise ValueError(f"Table '{name_table}' does not exist in the database.")
+            existing_tables = [table[0] for table in cursor.fetchall()]
+            raise ValueError(f"Table '{name_table}' does not exist in the database. Existing tables: {existing_tables}")
 
         cursor.execute(f"SELECT * FROM {name_table}")
         rows = cursor.fetchall()
@@ -159,11 +152,30 @@ class MetricDB:
         cursor.execute(f"PRAGMA table_info({name_table})")
         columns = [col[1] for col in cursor.fetchall()]
         df = pandas.DataFrame(rows, columns=columns)
-        cursor.close()
+
+        # ---- convert types for each column ----
+        for column in df.columns:
+            # ---- [1] try numeric conversion first ----
+            try:
+                numeric_series = pandas.to_numeric(df[column], errors="raise")
+                df[column] = numeric_series
+                continue
+            except (ValueError, TypeError):
+                pass
+
+            # ---- [2] if numeric conversion fails, try string decoding if needed ----
+            if df[column].dtype == object:
+                # ---- [2.1] check if any value in the column is bytes ----
+                if any(isinstance(x, bytes) for x in df[column].dropna()):
+                    df[column] = df[column].apply(lambda x: x.decode("utf-32le") if isinstance(x, bytes) else x)
 
         if self.verbose:
             print(f"[bold green]SQLite3[/bold green] Retrieved table '{name_table}' as pandas DataFrame")
+            print("Column dtypes:")
+            for col, dtype in df.dtypes.items():
+                print(f"  {col}: {dtype}")
 
+        cursor.close()
         return df
 
     # ---- for debugging ----
@@ -249,7 +261,7 @@ class MetricDB:
 
 
 if __name__ == "__main__":
-    # logger = MetricDB(base_dir="data", name_datafile="default.db")
+    # logger = MetricDB("default.db", verbose=True)
     # # logger._write_dummy_data()
 
     # logger.log({"epoch": 1})
@@ -263,9 +275,16 @@ if __name__ == "__main__":
     # # logger.print_header()
     # # logger.save_as_pandas_dataframe(name_table="train", save_dir="train.csv")
     # logger.show_last_row()
-
     # logger.on_end()
 
-    logger = MetricDB(base_dir=".", name_datafile="default.db")
+    logger = MetricDB("default.db", verbose=True)
     logger.print_header()
-    logger.get_moving_average(key="Valid Accuracy Balanced")
+    # logger.get_moving_average(key="Valid Accuracy Balanced")
+
+    # ---- [1] Demo numeric encoding issue ----
+    logger.log({"age": 25.1})
+    logger.log({"name": "Alice"})
+    df = logger.get_dataframe()
+    # ---- [2] All conversions are handled automatically ----
+    print(df)
+    logger.on_end()
