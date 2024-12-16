@@ -105,7 +105,7 @@ class MetricDB:
             print(f"[bold green]SQLite3[/bold green] connection closed for: {self.datafile_dir}")
 
     # --- [ other useful helpers ] ---
-    def save_as_pandas_dataframe(self, name_table: str = "main", save_dir: Path = "default.csv"):
+    def save_as_csv(self, name_table: str = "main", save_dir: Path = "default.csv"):
         """
         Save the specified table as a pandas DataFrame and export it to a CSV file.
 
@@ -275,7 +275,7 @@ if __name__ == "__main__":
     #     print(f"Moving Average of train loss: {loss}")
 
     # # logger.print_header()
-    # # logger.save_as_pandas_dataframe(name_table="train", save_dir="train.csv")
+    # # logger.save_as_csv(name_table="train", save_dir="train.csv")
     # logger.show_last_row()
     # logger.on_end()
 

@@ -43,7 +43,7 @@ for epoch in range(10):
     }, name_table="metrics")
 
 # Export to CSV
-logger.save_as_pandas_dataframe(name_table="metrics", save_dir="training_results.csv")
+logger.save_as_csv(name_table="metrics", save_dir="training_results.csv")
 
 # Get data as pandas DataFrame with automatic type conversion
 df = logger.get_dataframe(name_table="metrics")
@@ -75,7 +75,7 @@ print("\nDataFrame Summary:")
 print(df.describe())
 
 # Export specific tables
-logger.save_as_pandas_dataframe(name_table="main", save_dir="output.csv")
+logger.save_as_csv(name_table="main", save_dir="output.csv")
 
 logger.on_end()
 ```
