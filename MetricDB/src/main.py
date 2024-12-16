@@ -53,7 +53,9 @@ class MetricDB:
                 return moving_average
 
         if self.verbose:
-            print(f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]")
+            print(
+                f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]"
+            )
         return 0
 
     def log(self, data: dict, name_table: str = "main"):
