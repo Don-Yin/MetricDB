@@ -159,6 +159,11 @@ class MetricDB:
         for column in df.columns:
             # ---- [1] try numeric conversion first ----
             try:
+                # Check if column contains bytes that should be treated as numbers
+                if df[column].dtype == object and any(isinstance(x, bytes) for x in df[column].dropna()):
+                    df[column] = df[column].apply(lambda x: int.from_bytes(x, byteorder='little') if isinstance(x, bytes) else x)
+                    continue
+                
                 numeric_series = pandas.to_numeric(df[column], errors="raise")
                 df[column] = numeric_series
                 continue
@@ -167,9 +172,13 @@ class MetricDB:
 
             # ---- [2] if numeric conversion fails, try string decoding if needed ----
             if df[column].dtype == object:
-                # ---- [2.1] check if any value in the column is bytes ----
                 if any(isinstance(x, bytes) for x in df[column].dropna()):
-                    df[column] = df[column].apply(lambda x: x.decode("utf-32le") if isinstance(x, bytes) else x)
+                    try:
+                        df[column] = df[column].apply(lambda x: x.decode('utf-8') if isinstance(x, bytes) else x)
+                    except Exception as e:
+                        print(f"Error decoding column {column}: {str(e)}")
+                        # Fallback to treating as string
+                        df[column] = df[column].astype(str)
 
         if self.verbose:
             print(f"[bold green]SQLite3[/bold green] Retrieved table '{name_table}' as pandas DataFrame")
