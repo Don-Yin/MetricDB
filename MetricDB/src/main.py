@@ -161,9 +161,11 @@ class MetricDB:
             try:
                 # Check if column contains bytes that should be treated as numbers
                 if df[column].dtype == object and any(isinstance(x, bytes) for x in df[column].dropna()):
-                    df[column] = df[column].apply(lambda x: int.from_bytes(x, byteorder='little') if isinstance(x, bytes) else x)
+                    df[column] = df[column].apply(
+                        lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x
+                    )
                     continue
-                
+
                 numeric_series = pandas.to_numeric(df[column], errors="raise")
                 df[column] = numeric_series
                 continue
@@ -174,7 +176,7 @@ class MetricDB:
             if df[column].dtype == object:
                 if any(isinstance(x, bytes) for x in df[column].dropna()):
                     try:
-                        df[column] = df[column].apply(lambda x: x.decode('utf-8') if isinstance(x, bytes) else x)
+                        df[column] = df[column].apply(lambda x: x.decode("utf-8") if isinstance(x, bytes) else x)
                     except Exception as e:
                         print(f"Error decoding column {column}: {str(e)}")
                         # Fallback to treating as string
