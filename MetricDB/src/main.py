@@ -54,7 +54,9 @@ class MetricDB:
                 return moving_average
 
         if self.verbose:
-            print(f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]")
+            print(
+                f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]"
+            )
         return 0
 
     def log(self, data: dict, name_table: str = "main"):
@@ -160,7 +162,9 @@ class MetricDB:
             try:
                 # Check if column contains bytes that should be treated as numbers
                 if df[column].dtype == object and any(isinstance(x, bytes) for x in df[column].dropna()):
-                    df[column] = df[column].apply(lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x)
+                    df[column] = df[column].apply(
+                        lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x
+                    )
                     continue
 
                 numeric_series = pandas.to_numeric(df[column], errors="raise")
@@ -284,7 +288,9 @@ class MetricDB:
 
         if key not in columns:
             if self.verbose:
-                print(f"[bold yellow]Warning: Key '{key}' does not exist in table '{name_table}'. Returning False.[/bold yellow]")
+                print(
+                    f"[bold yellow]Warning: Key '{key}' does not exist in table '{name_table}'. Returning False.[/bold yellow]"
+                )
             return False
 
         query = f"""
@@ -300,7 +306,9 @@ class MetricDB:
         cursor.close()
         if not results:
             if self.verbose:
-                print(f"[bold yellow]Warning: No data found for key '{key}' in table '{name_table}'. Returning False.[/bold yellow]")
+                print(
+                    f"[bold yellow]Warning: No data found for key '{key}' in table '{name_table}'. Returning False.[/bold yellow]"
+                )
             return False
         values = [float(result[0]) for result in results if result[0] is not None][-window_size:]
         if len(values) < 8:
