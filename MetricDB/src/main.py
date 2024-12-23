@@ -3,6 +3,7 @@
 import sqlite3, pandas
 from rich import print
 from pathlib import Path
+from scipy import stats
 
 
 class MetricDB:
@@ -53,9 +54,7 @@ class MetricDB:
                 return moving_average
 
         if self.verbose:
-            print(
-                f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]"
-            )
+            print(f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]")
         return 0
 
     def log(self, data: dict, name_table: str = "main"):
@@ -161,9 +160,7 @@ class MetricDB:
             try:
                 # Check if column contains bytes that should be treated as numbers
                 if df[column].dtype == object and any(isinstance(x, bytes) for x in df[column].dropna()):
-                    df[column] = df[column].apply(
-                        lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x
-                    )
+                    df[column] = df[column].apply(lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x)
                     continue
 
                 numeric_series = pandas.to_numeric(df[column], errors="raise")
@@ -272,6 +269,51 @@ class MetricDB:
             print(f"[bold green]Dummy data inserted successfully into {name_table}![/bold green]")
             self.print_header()
 
+    def has_plateaued(
+        self,
+        key: str,
+        name_table: str = "main",
+        window_size: int = 16,
+        threshold_p: float = 0.05,
+        threshold_slope: float = 0.03,
+    ):
+        """check if the key has plateaued in the past window_size values / has to be statistically significant"""
+        cursor = self.connect.cursor()
+        cursor.execute(f"PRAGMA table_info({name_table})")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        if key not in columns:
+            if self.verbose:
+                print(f"[bold yellow]Warning: Key '{key}' does not exist in table '{name_table}'. Returning False.[/bold yellow]")
+            return False
+
+        query = f"""
+        SELECT "{key}"
+        FROM {name_table}
+        WHERE "{key}" IS NOT NULL
+        ORDER BY id DESC
+        LIMIT {window_size}
+        """
+
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        if not results:
+            if self.verbose:
+                print(f"[bold yellow]Warning: No data found for key '{key}' in table '{name_table}'. Returning False.[/bold yellow]")
+            return False
+        values = [float(result[0]) for result in results if result[0] is not None][-window_size:]
+        if len(values) < 8:
+            if self.verbose:
+                print(f"[bold yellow]Warning: Not enough valid data points for key '{key}'. Returning False.[/bold yellow]")
+            return False
+        x = list(range(len(values)))
+        slope, _, _, p_value, _ = stats.linregress(x, values)
+        is_flat = p_value > threshold_p and abs(slope) < threshold_slope
+        if self.verbose and is_flat:
+            print(f"[bold green]Values for '{key}' have plateaued (p = {p_value:.4f})[/bold green]")
+        return is_flat
+
 
 if __name__ == "__main__":
     # logger = MetricDB("default.db", verbose=True)
@@ -290,14 +332,48 @@ if __name__ == "__main__":
     # logger.show_last_row()
     # logger.on_end()
 
-    logger = MetricDB("default.db", verbose=True)
-    logger.print_header()
-    # logger.get_moving_average(key="Valid Accuracy Balanced")
+    # logger = MetricDB("default.db", verbose=True)
+    # logger.print_header()
+    # # logger.get_moving_average(key="Valid Accuracy Balanced")
 
-    # ---- [1] Demo numeric encoding issue ----
-    logger.log({"age": 25.1})
-    logger.log({"name": "Alice"})
-    df = logger.get_dataframe()
-    # ---- [2] All conversions are handled automatically ----
-    print(df)
+    # # ---- [1] Demo numeric encoding issue ----
+    # logger.log({"age": 25.1})
+    # logger.log({"name": "Alice"})
+    # df = logger.get_dataframe()
+    # # ---- [2] All conversions are handled automatically ----
+    # print(df)
+    # logger.on_end()
+
+    # Test has_plateaued with synthetic data using known functions
+    logger = MetricDB("test_plateau.db", verbose=True)
+
+    # Test case 1: Logistic function (natural plateau)
+    # f(x) = L / (1 + e^(-k(x-x0))) where L=1, k=1, x0=5
+    def logistic(x):
+        return 1 / (1 + 2.71828 ** (-1 * (x - 5)))
+
+    print("\nTesting logistic function plateau:")
+    for x in range(64):
+        logger.log({"logistic_metric": logistic(x)})
+    is_plateau = logger.has_plateaued("logistic_metric")
+    print(f"Has plateaued: {is_plateau}")
+
+    # Test case 2: Exponential decay (asymptotic plateau)
+    # f(x) = e^(-0.5x)
+    logger = MetricDB("test_exp.db", verbose=True)
+    print("\nTesting exponential decay plateau:")
+    for x in range(64):
+        logger.log({"exp_metric": 2.71828 ** (-0.5 * x)})
+    is_plateau = logger.has_plateaued("exp_metric")
+    print(f"Has plateaued: {is_plateau}")
+
+    # Test case 3: Linear function (no plateau)
+    # f(x) = 0.5x
+    logger = MetricDB("test_linear.db", verbose=True)
+    print("\nTesting linear function (should not plateau):")
+    for x in range(64):
+        logger.log({"linear_metric": 0.5 * x})
+    is_plateau = logger.has_plateaued("linear_metric")
+    print(f"Has plateaued: {is_plateau}")
+
     logger.on_end()
