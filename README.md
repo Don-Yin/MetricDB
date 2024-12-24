@@ -80,6 +80,39 @@ logger.save_as_csv(name_table="main", save_dir="output.csv")
 logger.on_end()
 ```
 
+### Plateau Detection
+```python
+from MetricDB import MetricDB
+
+logger = MetricDB(datafile_dir="training.db")
+
+for epoch in range(100):
+
+    accuracy = 0.95 / (1 + 2.71828 ** (-0.3 * (epoch - 20)))  # Will plateau around 0.95
+    logger.log({
+        "epoch": epoch,
+        "accuracy": accuracy
+    })
+    
+    # Check for plateau
+    # Parameters:
+    # - window_short=8: Compare against last 8 points
+    # - window_long=32: Compare against last 32 points
+    # - threshold_ratio=1.01: Need 1% improvement to not be considered plateaued
+    # - min_points=32: Wait for at least 32 points before checking
+    if logger.has_plateaued(
+        key="accuracy",
+        window_short=8,
+        window_long=32,
+        threshold_ratio=1.01,
+        min_points=32
+    ):
+        print(f"Training has plateaued at epoch {epoch}")
+        break
+
+logger.on_end()
+```
+
 ### Debugging and Monitoring
 ```python
 from MetricDB import MetricDB

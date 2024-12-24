@@ -54,9 +54,7 @@ class MetricDB:
                 return moving_average
 
         if self.verbose:
-            print(
-                f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]"
-            )
+            print(f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]")
         return 0
 
     def log(self, data: dict, name_table: str = "main"):
@@ -162,9 +160,7 @@ class MetricDB:
             try:
                 # Check if column contains bytes that should be treated as numbers
                 if df[column].dtype == object and any(isinstance(x, bytes) for x in df[column].dropna()):
-                    df[column] = df[column].apply(
-                        lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x
-                    )
+                    df[column] = df[column].apply(lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x)
                     continue
 
                 numeric_series = pandas.to_numeric(df[column], errors="raise")
@@ -274,53 +270,71 @@ class MetricDB:
             self.print_header()
 
     def has_plateaued(
-        self,
-        key: str,
-        name_table: str = "main",
-        window_size: int = 16,
-        threshold_p: float = 0.05,
-        threshold_slope: float = 0.03,
+        self, key: str, name_table: str = "main", window_short: int = 8, window_long: int = 32, threshold_ratio: float = 1.01, min_points: int = 32
     ):
-        """check if the key has plateaued in the past window_size values / has to be statistically significant"""
-        cursor = self.connect.cursor()
-        cursor.execute(f"PRAGMA table_info({name_table})")
-        columns = [col[1] for col in cursor.fetchall()]
+        """
+        Check if the key has plateaued by comparing short and long moving averages.
 
-        if key not in columns:
-            if self.verbose:
-                print(
-                    f"[bold yellow]Warning: Key '{key}' does not exist in table '{name_table}'. Returning False.[/bold yellow]"
-                )
-            return False
+        Args:
+            key: The metric to analyze
+            name_table: The table containing the data
+            short_window: Size of the shorter moving average window
+            long_window: Size of the longer moving average window
+            threshold_ratio: How much larger the short MA needs to be vs long MA to indicate improvement
+            min_points: Minimum number of data points needed before checking for plateau
+        """
+        cursor = self.connect.cursor()
+
+        # Create table if it doesn't exist
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {name_table} (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                "{key}" TEXT
+            )
+            """
+        )
 
         query = f"""
         SELECT "{key}"
         FROM {name_table}
         WHERE "{key}" IS NOT NULL
         ORDER BY id DESC
-        LIMIT {window_size}
+        LIMIT {window_long}
         """
 
         cursor.execute(query)
         results = cursor.fetchall()
         cursor.close()
+
         if not results:
             if self.verbose:
-                print(
-                    f"[bold yellow]Warning: No data found for key '{key}' in table '{name_table}'. Returning False.[/bold yellow]"
-                )
+                print(f"[bold yellow]Warning: No data found for key '{key}'. Returning False.[/bold yellow]")
             return False
-        values = [float(result[0]) for result in results if result[0] is not None][-window_size:]
-        if len(values) < 8:
+
+        values = [float(result[0]) for result in results if result[0] is not None]
+
+        if len(values) < min_points:
             if self.verbose:
-                print(f"[bold yellow]Warning: Not enough valid data points for key '{key}'. Returning False.[/bold yellow]")
+                print(f"[bold yellow]Warning: Not enough data points ({len(values)} < {min_points}). Returning False.[/bold yellow]")
             return False
-        x = list(range(len(values)))
-        slope, _, _, p_value, _ = stats.linregress(x, values)
-        is_flat = p_value > threshold_p and abs(slope) < threshold_slope
-        if self.verbose and is_flat:
-            print(f"[bold green]Values for '{key}' have plateaued (p = {p_value:.4f})[/bold green]")
-        return is_flat
+
+        # Calculate moving averages
+        shor_ma = sum(values[:window_short]) / window_short
+        long_ma = sum(values[:window_long]) / window_long
+
+        # For metrics we want to minimize (like loss)
+        if sum(values[:5]) < sum(values[-5:]):  # Check if metric is decreasing
+            is_plateau = shor_ma >= long_ma / threshold_ratio
+        else:
+            is_plateau = shor_ma <= long_ma * threshold_ratio
+
+        if self.verbose:
+            if is_plateau:
+                print(f"[bold green]Values for '{key}' have plateaued (short MA: {shor_ma:.4f}, long MA: {long_ma:.4f})[/bold green]")
+            else:
+                print(f"[bold yellow]Values for '{key}' have not plateaued (short MA: {shor_ma:.4f}, long MA: {long_ma:.4f})[/bold yellow]")
+        return is_plateau
 
 
 if __name__ == "__main__":
