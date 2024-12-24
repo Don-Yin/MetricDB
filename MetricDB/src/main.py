@@ -54,7 +54,9 @@ class MetricDB:
                 return moving_average
 
         if self.verbose:
-            print(f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]")
+            print(
+                f"[bold yellow]Warning: No valid numeric values found for key '{key}' in table '{name_table}'. Returning 0.[/bold yellow]"
+            )
         return 0
 
     def log(self, data: dict, name_table: str = "main"):
@@ -160,7 +162,9 @@ class MetricDB:
             try:
                 # Check if column contains bytes that should be treated as numbers
                 if df[column].dtype == object and any(isinstance(x, bytes) for x in df[column].dropna()):
-                    df[column] = df[column].apply(lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x)
+                    df[column] = df[column].apply(
+                        lambda x: int.from_bytes(x, byteorder="little") if isinstance(x, bytes) else x
+                    )
                     continue
 
                 numeric_series = pandas.to_numeric(df[column], errors="raise")
@@ -270,7 +274,13 @@ class MetricDB:
             self.print_header()
 
     def has_plateaued(
-        self, key: str, name_table: str = "main", window_short: int = 8, window_long: int = 32, threshold_ratio: float = 1.01, min_points: int = 32
+        self,
+        key: str,
+        name_table: str = "main",
+        window_short: int = 8,
+        window_long: int = 32,
+        threshold_ratio: float = 1.01,
+        min_points: int = 32,
     ):
         """
         Check if the key has plateaued by comparing short and long moving averages.
@@ -316,7 +326,9 @@ class MetricDB:
 
         if len(values) < min_points:
             if self.verbose:
-                print(f"[bold yellow]Warning: Not enough data points ({len(values)} < {min_points}). Returning False.[/bold yellow]")
+                print(
+                    f"[bold yellow]Warning: Not enough data points ({len(values)} < {min_points}). Returning False.[/bold yellow]"
+                )
             return False
 
         # Calculate moving averages
@@ -331,9 +343,13 @@ class MetricDB:
 
         if self.verbose:
             if is_plateau:
-                print(f"[bold green]Values for '{key}' have plateaued (short MA: {shor_ma:.4f}, long MA: {long_ma:.4f})[/bold green]")
+                print(
+                    f"[bold green]Values for '{key}' have plateaued (short MA: {shor_ma:.4f}, long MA: {long_ma:.4f})[/bold green]"
+                )
             else:
-                print(f"[bold yellow]Values for '{key}' have not plateaued (short MA: {shor_ma:.4f}, long MA: {long_ma:.4f})[/bold yellow]")
+                print(
+                    f"[bold yellow]Values for '{key}' have not plateaued (short MA: {shor_ma:.4f}, long MA: {long_ma:.4f})[/bold yellow]"
+                )
         return is_plateau
 
 
